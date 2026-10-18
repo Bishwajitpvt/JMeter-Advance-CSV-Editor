@@ -50,6 +50,7 @@ public final class EditableCsvDataSetGui extends AbstractConfigGui {
     private long loadedSize, loadedModified;
     private byte[] loadedHash;
     private boolean dirty, suppress;
+    private boolean loadedQuotedData;
     private final JButton save = new JButton("Save changes to CSV");
     private final JButton pasteButton = new JButton("Paste from Excel (Ctrl+V)");
 
@@ -153,6 +154,22 @@ public final class EditableCsvDataSetGui extends AbstractConfigGui {
         filename.getDocument().addDocumentListener(reloadOnChange());
         delimiter.getDocument().addDocumentListener(reloadOnChange());
         encoding.getDocument().addDocumentListener(reloadOnChange());
+        // JMeter has two different CSV readers. A mode switch must refresh the preview,
+        // and must never silently reinterpret data that the user has already edited.
+        quotedData.addActionListener(e -> {
+            if (suppress) return;
+            if (dirty) {
+                suppress = true;
+                try { quotedData.setSelected(loadedQuotedData); }
+                finally { suppress = false; }
+                JOptionPane.showMessageDialog(this,
+                        "Save or discard your CSV edits before changing Allow quoted data.",
+                        "Unsaved CSV changes", JOptionPane.WARNING_MESSAGE);
+            } else {
+                previewTimer.stop();
+                loadCsv();
+            }
+        });
     }
 
     private void formRow(JPanel panel, GridBagConstraints c, int row, String label, JComponent control) {
@@ -246,13 +263,26 @@ public final class EditableCsvDataSetGui extends AbstractConfigGui {
             if (headers.isEmpty() || new HashSet<>(headers).size() != headers.size())
                 throw new IllegalArgumentException("Provide unique column names.");
             int blankRows = ((Number) rowCount.getValue()).intValue();
-            // CREATE_NEW guarantees we never overwrite an existing CSV, even under a race.
-            try (Writer writer = Files.newBufferedWriter(target, csvCharset(),
-                    StandardOpenOption.CREATE_NEW, StandardOpenOption.WRITE);
-                 CSVPrinter printer = new CSVPrinter(writer, format())) {
-                printer.printRecord(headers);
-                List<String> empty = new ArrayList<>(Collections.nCopies(headers.size(), ""));
-                for (int i = 0; i < blankRows; i++) printer.printRecord(empty);
+            // A quoted header is valid only if runtime quoted-data parsing is enabled.
+            CsvEditorCodec.validateForMode(Collections.singletonList(headers),
+                    csvDelimiter(), quotedData.isSelected());
+            List<List<String>> initialRows = new ArrayList<>();
+            initialRows.add(headers);
+            List<String> empty = new ArrayList<>(Collections.nCopies(headers.size(), ""));
+            for (int i = 0; i < blankRows; i++) initialRows.add(empty);
+            // CREATE_NEW guarantees no overwrite, even if another process creates
+            // the selected file while the setup dialog is open.
+            boolean created = false;
+            try {
+                try (Writer writer = Files.newBufferedWriter(target, csvCharset(),
+                        StandardOpenOption.CREATE_NEW, StandardOpenOption.WRITE)) {
+                    created = true;
+                    CsvEditorCodec.write(writer, csvDelimiter(),
+                            quotedData.isSelected(), initialRows);
+                }
+            } catch (Exception ex) {
+                if (created) Files.deleteIfExists(target);
+                throw ex;
             }
             previewTimer.stop();
             dirty = false;
@@ -301,13 +331,10 @@ public final class EditableCsvDataSetGui extends AbstractConfigGui {
         if (p == null) { clearPreview("Enter an existing literal CSV filename to preview (runtime variable paths cannot be previewed)."); return; }
         if (!Files.isRegularFile(p)) { clearPreview("File not found: " + p); return; }
         try {
-            List<List<String>> data = new ArrayList<>();
-            try (Reader reader = Files.newBufferedReader(p, csvCharset()); CSVParser parser = format().parse(reader)) {
-                for (CSVRecord record : parser) {
-                    List<String> row = new ArrayList<>(); for (String value : record) row.add(value);
-                    data.add(row);
-                }
-            }
+            // Match the exact parser JMeter's CSVDataSet uses at test execution.
+            // Quoted: CSVSaveService.csvReadFile; unquoted: JOrphanUtils.split.
+            List<List<String>> data = CsvEditorCodec.read(p, csvCharset(),
+                    csvDelimiter(), quotedData.isSelected());
             int count = 0;
             for (List<String> r : data) count = Math.max(count, r.size());
             count = Math.max(count, 1);
@@ -324,6 +351,7 @@ public final class EditableCsvDataSetGui extends AbstractConfigGui {
                 }
             } finally { suppress = false; }
             loadedPath = p; captureFingerprint(p); dirty = false;
+            loadedQuotedData = quotedData.isSelected();
             for (int i = 0; i < table.getColumnModel().getColumnCount(); i++) {
                 table.getColumnModel().getColumn(i).setPreferredWidth(160);
                 table.getColumnModel().getColumn(i).setMinWidth(85);
@@ -333,7 +361,8 @@ public final class EditableCsvDataSetGui extends AbstractConfigGui {
     }
     private void clearPreview(String message) {
         suppress = true; try { model.setRowCount(0); model.setColumnCount(0); } finally { suppress = false; }
-        loadedPath = null; dirty = false; updateButtons(); status.setText(message);
+        loadedPath = null; dirty = false; loadedQuotedData = quotedData.isSelected();
+        updateButtons(); status.setText(message);
     }
     private byte[] hash(Path p) throws IOException {
         try {
@@ -447,15 +476,22 @@ public final class EditableCsvDataSetGui extends AbstractConfigGui {
             if (!Files.isRegularFile(p) || Files.size(p) != loadedSize || Files.getLastModifiedTime(p).toMillis() != loadedModified || !Arrays.equals(hash(p), loadedHash)) {
                 throw new IOException("CSV changed on disk since it was loaded. Save cancelled to protect external changes. Back up your edits before refreshing.");
             }
+            if (quotedData.isSelected() != loadedQuotedData) {
+                throw new IOException("Quoted-data setting changed after loading. Refresh the preview before saving.");
+            }
+            // Collect and validate everything BEFORE touching a file, including the temp file.
+            List<List<String>> records = new ArrayList<>();
+            for (int row = 0; row < model.getRowCount(); row++) {
+                List<String> values = new ArrayList<>();
+                for (int col = 0; col < model.getColumnCount(); col++)
+                    values.add(Objects.toString(model.getValueAt(row, col), ""));
+                records.add(values);
+            }
+            char sep = csvDelimiter();
+            CsvEditorCodec.validateForMode(records, sep, loadedQuotedData);
             Path parent = p.getParent();
             temp = Files.createTempFile(parent, ".csv-editor-", ".tmp");
-            try (Writer writer = Files.newBufferedWriter(temp, csvCharset()); CSVPrinter printer = new CSVPrinter(writer, format())) {
-                for (int row = 0; row < model.getRowCount(); row++) {
-                    List<String> values = new ArrayList<>();
-                    for (int col = 0; col < model.getColumnCount(); col++) values.add(Objects.toString(model.getValueAt(row, col), ""));
-                    printer.printRecord(values);
-                }
-            }
+            CsvEditorCodec.write(temp, csvCharset(), sep, loadedQuotedData, records);
             try { Files.move(temp, p, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE); }
             catch (AtomicMoveNotSupportedException e) { Files.move(temp, p, StandardCopyOption.REPLACE_EXISTING); }
             temp = null; captureFingerprint(p); dirty = false; updateStatus();
