@@ -1,4 +1,4 @@
-# JMeter CSV Editor Plugin
+# JJMeter-Advance-CSV-Editor Plugin
 
 **Edit, create, and manage CSV test data directly inside Apache JMeter.**
 
