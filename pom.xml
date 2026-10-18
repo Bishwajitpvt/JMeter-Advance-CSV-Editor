@@ -1,6 +1,6 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
-  <modelVersion>4.0.0</modelVersion><groupId>com.example.jmeter</groupId><artifactId>jmeter-csv-editor</artifactId><version>1.3.0</version><packaging>jar</packaging>
-  <properties><maven.compiler.release>8</maven.compiler.release><project.build.sourceEncoding>UTF-8</project.build.sourceEncoding><jmeter.version>5.6.2</jmeter.version></properties>
+  <modelVersion>4.0.0</modelVersion><groupId>com.example.jmeter</groupId><artifactId>jmeter-csv-editor</artifactId><version>1.3.1</version><packaging>jar</packaging>
+  <properties><maven.compiler.source>1.8</maven.compiler.source><maven.compiler.target>1.8</maven.compiler.target><project.build.sourceEncoding>UTF-8</project.build.sourceEncoding><!-- Build against the oldest supported version for a single cross-version JAR. Override with -Djmeter.version=5.6.3 when desired. --><jmeter.version>5.6.2</jmeter.version></properties>
   <dependencies>
     <dependency><groupId>org.apache.jmeter</groupId><artifactId>ApacheJMeter_core</artifactId><version>${jmeter.version}</version><scope>provided</scope></dependency>
     <dependency><groupId>org.apache.jmeter</groupId><artifactId>ApacheJMeter_components</artifactId><version>${jmeter.version}</version><scope>provided</scope></dependency>

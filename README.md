@@ -4,25 +4,24 @@
 
 A custom, GUI-based alternative to **CSV Data Set Config** that adds an editable table and Excel-style multi-cell paste while using JMeter's standard `CSVDataSet` test element for runtime CSV consumption.
 
-> **Current version:** 1.3.0  
-> **Target compatibility:** Apache JMeter 5.6.2 · Java 8 · Maven 3.9.2  
-> **Status:** Source build provided; validate on your own JMeter installation before team-wide use.
+> **Plugin release version:** 1.2  
+> **Target compatibility:** Apache JMeter 5.6.2 and 5.6.3 | Java 8 | Maven 3.9.2
 
 ## Features
 
-| Feature | Description |
-| --- | --- |
-| CSV preview | Display CSV records in a scrollable table, inside JMeter. |
-| Edit cells | Modify values directly in the table. |
-| Add rows | Append blank records to the displayed data. |
-| Delete rows | Select rows and remove them after confirmation. |
-| Save changes | Write edits back to the original CSV file. |
-| New CSV | Choose a filename, define headers, and create blank data rows. |
-| Excel-style paste **(v1.3.0)** | Paste multiple rows and columns from Excel, Sheets, or another tab-separated clipboard source. |
-| Automatic table expansion | Add rows and columns when a pasted range exceeds the table boundaries. |
-| Clipboard shortcut | Press **Ctrl+V** while the table is focused, or use **Paste from Excel (Ctrl+V)**. |
-| Unsaved-change indicator | Indicates that edits have not yet been written to the CSV. |
-| External edit protection | Cancel saving if the source CSV changed on disk since loading it. |
+| Feature                        | Description                                                                                                                        |
+| ------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------- |
+| CSV preview                    | Display CSV records in a scrollable table, inside JMeter.                                                                          |
+| Edit cells                     | Modify values directly in the table.                                                                                               |
+| Add rows                       | Append blank records to the displayed data.                                                                                        |
+| Delete rows                    | Select rows and remove them after confirmation.                                                                                    |
+| Save changes                   | Write edits back to the original CSV file.                                                                                         |
+| New CSV                        | Choose a filename, define headers, and create blank data rows.                                                                     |
+| Excel-style paste              | Paste multiple rows and columns from Excel, Sheets, or another tab-separated clipboard source.                                     |
+| Automatic table expansion      | Add rows and columns when a pasted range exceeds the table boundaries.                                                             |
+| Clipboard shortcut             | Press **Ctrl+V** while the table is focused, or use **Paste from Excel (Ctrl+V)**.                                                 |
+| Unsaved-change indicator       | Indicates that edits have not yet been written to the CSV.                                                                         |
+| External edit protection       | Cancel saving if the source CSV changed on disk since loading it.                                                                  |
 | Standard CSV Data Set behavior | Runtime filename, encoding, delimiter, variable names, quoted data, EOF and sharing settings are forwarded to JMeter's CSV engine. |
 
 ### Standard JMeter settings
@@ -41,7 +40,7 @@ The plugin exposes the same core configuration properties as CSV Data Set Config
 
 ## Requirements
 
-- Apache JMeter **5.6.2** (project target)
+- Apache JMeter **5.6.2 or 5.6.3** (build defaults to 5.6.2 APIs)
 - Java **8** or a suitable newer Java runtime supported by JMeter
 - Apache Maven (tested by the project owner with **3.9.2**) to build the source
 - Permission to install JAR files into the JMeter `lib/ext` directory
@@ -60,19 +59,35 @@ The included `settings-central.xml` uses Maven Central directly. **Only use this
 mvn clean package
 ```
 
-Successful packaging creates:
+### Choose the JMeter API version
 
-```text
-target/jmeter-csv-editor-1.3.0.jar
+By default the project compiles against **5.6.2**, the oldest target, so the resulting plugin can be installed on JMeter **5.6.2 or 5.6.3** (subject to validation in your environment):
+
+```cmd
+mvn -s settings-central.xml clean package
 ```
 
-Maven Shade may also create `original-jmeter-csv-editor-1.3.0.jar`. **Install the non-`original-` JAR** because it includes the packaged dependency classes.
+To explicitly compile against **5.6.3**:
+
+```cmd
+mvn -s settings-central.xml -Djmeter.version=5.6.3 clean package
+```
+
+**Important:** A JAR compiled specifically against 5.6.3 should not be assumed to work on 5.6.2. To maintain one distributable JAR, use the default 5.6.2 build, keep JMeter dependencies as `provided`, and validate the resulting JAR on both JMeter releases. Java 8 builds require `source`/`target` rather than `--release`.
+
+**Note:** README version 1.2 is a documentation/release label. The supplied source currently has Maven project version `1.3.1`; Maven will continue to generate the following file until you change `<version>` in `pom.xml`:
+
+```text
+target/jmeter-csv-editor-1.3.1.jar
+```
+
+Maven Shade may also create `original-jmeter-csv-editor-1.3.1.jar`. **Install the non-`original-` JAR** because it includes the packaged dependency classes.
 
 ## Install in JMeter
 
 1. Close JMeter.
 2. Remove any **older `jmeter-csv-editor-*.jar`** from `<JMETER_HOME>\lib\ext`.
-3. Copy `target\jmeter-csv-editor-1.3.0.jar` to `<JMETER_HOME>\lib\ext`.
+3. Copy `target\jmeter-csv-editor-1.3.1.jar` to `<JMETER_HOME>\lib\ext`.
 4. Restart JMeter.
 5. In a Test Plan or Thread Group, go to **Add → Config Element → CSV Data Set Config (Editable)**.
 
@@ -98,13 +113,14 @@ Maven Shade may also create `original-jmeter-csv-editor-1.3.0.jar`. **Install th
    ```text
    Username,Password,AccountNo
    ```
+
 4. Choose the number of blank data rows and confirm.
 5. Fill the rows manually or paste a range from Excel.
 6. Click **Save changes to CSV** after editing.
 
 The new CSV is **created immediately** with a header record and optional blank rows. The plugin refuses to overwrite an existing file during **New CSV** creation.
 
-## Excel-style copy and paste (v1.3.0)
+## Excel-style copy and paste
 
 1. In Excel, LibreOffice Calc, or a compatible spreadsheet, select a rectangular set of cells.
 2. Press **Ctrl+C**.
@@ -115,10 +131,10 @@ The new CSV is **created immediately** with a header record and optional blank r
 Example source range:
 
 | Username | Password | AccountNo |
-| --- | --- | --- |
-| user01 | pass01 | 10001 |
-| user02 | pass02 | 10002 |
-| user03 | pass03 | 10003 |
+| -------- | -------- | --------- |
+| user01   | pass01   | 10001     |
+| user02   | pass02   | 10002     |
+| user03   | pass03   | 10003     |
 
 If the destination starts at row 2, column 1, the pasted values begin at that location. Rows and columns are added automatically when required.
 
@@ -154,12 +170,12 @@ If you enter explicit variable names, use **Ignore First Line** appropriately to
 
 The custom GUI configures JMeter's standard `CSVDataSet` runtime element; record distribution is therefore managed by JMeter. Validate your chosen settings with a small test before a high-concurrency run:
 
-| Setting | What to verify |
-| --- | --- |
-| All threads | Threads share the intended CSV cursor. |
-| Current thread group | Each group has the intended sharing scope. |
-| Current thread | Each thread reads with its own scope. |
-| Identifier | Elements using the same identifier share as intended. |
+| Setting                      | What to verify                                                 |
+| ---------------------------- | -------------------------------------------------------------- |
+| All threads                  | Threads share the intended CSV cursor.                         |
+| Current thread group         | Each group has the intended sharing scope.                     |
+| Current thread               | Each thread reads with its own scope.                          |
+| Identifier                   | Elements using the same identifier share as intended.          |
 | Recycle / Stop thread on EOF | Behavior matches the test plan's desired end-of-file handling. |
 
 For load-test scripts, test **non-GUI execution** after verifying the GUI editor and save workflow.
@@ -170,57 +186,20 @@ For load-test scripts, test **non-GUI execution** after verifying the GUI editor
 - **Do not edit CSV files while a load test is running**; the JMeter engine may already have the file open.
 - If the CSV is changed by another application after being loaded, **Save** is cancelled to protect external changes; reload carefully after preserving any unsaved work.
 - CSV files containing credentials, personal data, tokens or customer records should **not** be committed to a public GitHub repository. Use synthetic examples only.
-- Large CSVs are displayed in a Swing table; there is **no virtualized/lazy-loaded grid** in v1.3.0. For exceptionally large files, use a dedicated bulk-data tool.
+- Large CSVs are displayed in a Swing table; there is **no virtualized/lazy-loaded grid** in the current implementation. For exceptionally large files, use a dedicated bulk-data tool.
 
 ## Troubleshooting
 
-| Problem | What to check |
-| --- | --- |
-| Plugin menu item missing | Confirm the current JAR is in `lib/ext`, remove older versions, and fully restart JMeter. Review `jmeter.log` for plugin loading errors. |
-| `settings-central.xml` not found | Run Maven from the directory containing both `pom.xml` and `settings-central.xml`. |
-| Nexus cannot download a Maven plugin | Check company Nexus connectivity; if permitted, use the supplied Maven Central settings. |
-| `mvn` not recognized | Verify Maven installation and your `PATH`. |
-| Excel paste appears in one cell | Select the JTable cell rather than editing text inside the cell; try the Paste button. Ensure the copied range is tabular. |
-| Paste adds unexpected columns | Check the selected starting cell and the number of source columns. Inspect the saved header/variable mapping. |
-| Save reports an external change | Another program altered the file. Preserve edits, reload, and apply them to the latest copy. |
-| CSV headers are passed as test values | Check **Variable Names** and **Ignore First Line**. |
-
-## Project structure
-
-```text
-jmeter-csv-editor-1.3.0/
-├── pom.xml
-├── settings-central.xml
-├── README.md
-├── example.csv
-└── src/
-    └── main/
-        └── java/
-            └── com/example/jmeter/
-                └── EditableCsvDataSetGui.java
-```
-
-For GitHub, ignore Maven output using `.gitignore`:
-
-```gitignore
-/target/
-*.class
-.idea/
-.vscode/
-*.iml
-*.log
-```
-
-The supplied `settings-central.xml` contains no credentials, but review local settings before committing. Commit source files and the README; distribute the compiled JAR as a **GitHub Release asset** rather than committing build outputs.
-
-## Release history
-
-| Version | Main addition |
-| --- | --- |
-| 1.0.0 | View, edit, delete and save CSV records in JMeter. |
-| 1.1.0 | More consistent, user-friendly configuration and table layout. |
-| 1.2.0 | Create a new CSV and enter data from the JMeter UI. |
-| 1.3.0 | Excel-style multi-row/multi-column paste with automatic table expansion. |
+| Problem                               | What to check                                                                                                                            |
+| ------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| Plugin menu item missing              | Confirm the current JAR is in `lib/ext`, remove older versions, and fully restart JMeter. Review `jmeter.log` for plugin loading errors. |
+| `settings-central.xml` not found      | Run Maven from the directory containing both `pom.xml` and `settings-central.xml`.                                                       |
+| Nexus cannot download a Maven plugin  | Check company Nexus connectivity; if permitted, use the supplied Maven Central settings.                                                 |
+| `mvn` not recognized                  | Verify Maven installation and your `PATH`.                                                                                               |
+| Excel paste appears in one cell       | Select the JTable cell rather than editing text inside the cell; try the Paste button. Ensure the copied range is tabular.               |
+| Paste adds unexpected columns         | Check the selected starting cell and the number of source columns. Inspect the saved header/variable mapping.                            |
+| Save reports an external change       | Another program altered the file. Preserve edits, reload, and apply them to the latest copy.                                             |
+| CSV headers are passed as test values | Check **Variable Names** and **Ignore First Line**.                                                                                      |
 
 ## Known limitations / possible future improvements
 
@@ -235,4 +214,4 @@ For changes, open an issue describing the JMeter version, Java version, how to r
 
 ## License
 
-No license file is included in this source archive. Add a license approved by the project owner before declaring it open source or inviting external redistribution.
+No license file is included in this source archive.
