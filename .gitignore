@@ -1,0 +1,30 @@
+# Maven build output
+/target/
+
+# Java compiled files
+*.class
+
+# IDE files
+.idea/
+*.iml
+.project
+.classpath
+.settings/
+.vscode/
+
+# Temporary files
+*.log
+*.tmp
+*.bak
+*~
+
+# OS-generated files
+.DS_Store
+Thumbs.db
+
+# Local Maven settings (may contain credentials)
+settings.xml
+settings-central.xml
+
+# Test data containing sensitive information
+/test-data/private/
